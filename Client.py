@@ -28,13 +28,43 @@ class Client:
     # When connection is accepted, communicate name back to server.
 
     # Send a string to the server, get input through CLI
+    def send_message(self, message):
+        return
 
-    # Send a 'status' message to recieve, sever cache info 
+    # Send a 'status' message to recieve, sever cache info
+    def get_cache(self):
+        status = ""
+        return status
 
     # Send 'exit' message, to close connection whenever user ready.
+    def close_connection(self):
+        return
 
     # Send 'list' message. When list of files recieved, ask user for name of file they want.
     # If entered file name invalid ask user again.
+    def get_file(self, message):
+        return
 
 if __name__ == "__main__":
     client = Client()
+    print("Options:")
+    print("'exit' : Close connection with server")
+    print("'status' : Get client cache info")
+    print("'list': request any file, in server repo.")
+
+    print("\n Any other input will be considered a message\n")
+    input = ""
+    while True:
+        input = input("\n")
+        if input == "exit":
+            client.close_connection()
+            break
+        elif input == "status":
+            print(client.get_cache)
+            continue
+        elif input == "list":
+            client.get_file()
+        else:
+            client.get_message(input)
+
+    print("Chat app shut down")
