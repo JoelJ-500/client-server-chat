@@ -29,7 +29,7 @@ class Client:
 
     # Send a string to the server, get input through CLI
     def send_message(self, message):
-        return
+        return 
 
     # Send a 'status' message to recieve, sever cache info
     def get_cache(self):
@@ -39,6 +39,10 @@ class Client:
     # Send 'exit' message, to close connection whenever user ready.
     def close_connection(self):
         return
+    
+    def shutdown_server(self):
+        return
+        
 
     # Send 'list' message. When list of files recieved, ask user for name of file they want.
     # If entered file name invalid ask user again.
@@ -49,15 +53,18 @@ if __name__ == "__main__":
     client = Client()
     print("Options:")
     print("'exit' : Close connection with server")
+    print("'shutdown': Close connection with server and shuts down the server too")
     print("'status' : Get client cache info")
     print("'list': request any file, in server repo.")
 
-    print("\n Any other input will be considered a message\n")
-    input = ""
+    print("\n Any other input than the above, will be considered a message\n")
     while True:
         input = input("\n")
         if input == "exit":
             client.close_connection()
+            break
+        elif input == "shutdown":
+            client.shutdown_server()
             break
         elif input == "status":
             print(client.get_cache)
@@ -65,6 +72,6 @@ if __name__ == "__main__":
         elif input == "list":
             client.get_file()
         else:
-            client.get_message(input)
+            client.send_message(input)
 
     print("Chat app shut down")
