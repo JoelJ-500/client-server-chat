@@ -29,7 +29,13 @@ class Client:
 
     # Send a string to the server, get input through CLI
     def send_message(self, message):
-        return 
+        self.clientSocket.send(message.encode())
+
+        #Get ack
+        ack = self.clientSocket.recv(1024)
+        if ack == message + "ACK":
+            print("Message delivery is a success!")
+            print(f"Response: {ack}\n")
 
     # Send a 'status' message to recieve, sever cache info
     def get_cache(self):
