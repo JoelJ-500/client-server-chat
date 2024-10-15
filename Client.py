@@ -1,4 +1,5 @@
 from socket import *
+import datetime
 
 class Client:
     # Establish connection through handshake
@@ -31,24 +32,24 @@ class Client:
     def send_message(self, message):
         self.clientSocket.send(message.encode())
 
-        #Get ack
+        #Get ack from server
         ack = self.clientSocket.recv(1024)
         if ack == message + "ACK":
             print("Message delivery is a success!")
-            print(f"Response: {ack}\n")
+            print(f"Acknowledgement Response: {ack}\n")
 
     # Send a 'status' message to recieve, sever cache info
     def get_cache(self):
-        status = ""
+        self.clientSocket.send("status".encode())
+        status = self.clientSocket.recv(1024)
         return status
 
     # Send 'exit' message, to close connection whenever user ready.
     def close_connection(self):
-        return
+        self.clientSocket.send("exit".encode())
     
     def shutdown_server(self):
-        return
-        
+        self.clientSocket.send("shutdown".encode())
 
     # Send 'list' message. When list of files recieved, ask user for name of file they want.
     # If entered file name invalid ask user again.
@@ -80,4 +81,4 @@ if __name__ == "__main__":
         else:
             client.send_message(input)
 
-    print("Chat app shut down")
+    print("\nChat app shut down")
