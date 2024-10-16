@@ -1,4 +1,5 @@
 from socket import *
+import socket
 import datetime
 import threading
 
@@ -18,9 +19,12 @@ class Server:
         self.clients = []
 
         # Set up welcoming socket
-        self.server_socket = socket(AF_INET, SOCK_STREAM)
+        self.server_socket = socket.socket(AF_INET, SOCK_STREAM)
         self.server_socket.bind(('', self.server_port))
         self.server_socket.listen(3)
+
+        # Output server IP and port
+        print(f"Server listening on {socket.gethostbyname(socket.gethostname())}:{self.server_port} ")
 
         # Create a shutdown server, thread event
         self.shutdown_event = threading.Event()
@@ -41,20 +45,17 @@ class Server:
         # Add the client once handshake built, and get the name of client. 
         cname = self.add_client(addr, datetime.datetime.now(), connection_socket)
 
-        # Read the client message to determine what action to take
-        message = connection_socket.recv(1024).decode()
-
-        if message == "exit":
-            self.close_connection(connection_socket, cname)
-        elif message == "shutdown": # End session
-            for client in self.clients:
-                client_sock = client[2]
-                client_sock.close()
-            self.shutdown_event.set()
-            # NOTE: Since the session data is only temporary we dont have to write the end times
-            # of every connection we close during shutdown.
-        else:
-            self.echo_message(message, connection_socket)
+        while True:
+            # Read the client message to determine what action to take
+            message = connection_socket.recv(1024).decode()
+            
+            if message == "exit":
+                self.close_connection(connection_socket, cname)
+                break
+            elif message == "status":
+                self.send_status(connection_socket)
+            else:
+                self.echo_message(message, connection_socket)
                 
              
     # Updates the clients and cache list attribute to add client
@@ -76,7 +77,8 @@ class Server:
 
     #  Echos a recived string message, back to client with 'ACK' appended at the end.
     def echo_message(self, message, connection_socket):
-        connection_socket.send(message+"ACK".encode())
+        message += str("ACK")
+        connection_socket.send(message.encode())
 
     # Upon recieving an exit message, terminates the connection with the specified client.
     def close_connection(self, connection_socket, cname):
@@ -92,6 +94,12 @@ class Server:
             if connection[0] == cname:
                 connection[2] = date_ended
                 break
+
+    # Return cache of specific client
+    def send_status(self, con_socket):
+        status = ''.join(str(item)+"\n" for item in self.cache)  # Convert each item to a string
+        con_socket.send(status.encode())
+
 
     # Listen for a 'list' message. Upon recieval, give a list of files, and wait for response.
     # Upon response send the clients desired file. If name invalid ask again.
