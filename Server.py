@@ -2,6 +2,8 @@ from socket import *
 import socket
 import datetime
 import threading
+from pathlib import Path
+import os
 
 class Server:
     def __init__(self):
@@ -33,6 +35,15 @@ class Server:
         while not self.shutdown_event.is_set():
             # Handle any handshake request
             connection_socket, addr = self.server_socket.accept()
+
+            # Check if server at max capacity of 3 clients
+            if (self.connected_clients >= 3):
+                message = "max_cap"
+                connection_socket.send(message.encode())
+                continue
+            else:
+                message = "success"
+                connection_socket.send(message.encode())
             # Create and start a new thread for said connection
             client_thread = threading.Thread(target=self.listen, args=(connection_socket, addr))
             client_thread.start()
@@ -43,7 +54,7 @@ class Server:
     # Listen for the type of request and handle accordingly
     def listen(self, connection_socket, addr):            
         # Add the client once handshake built, and get the name of client. 
-        cname = self.add_client(addr, datetime.datetime.now(), connection_socket)
+        cname = self.add_client(addr, datetime.datetime.now().strftime("%B %d, %Y %I:%M %p"), connection_socket)
 
         while True:
             # Read the client message to determine what action to take
@@ -52,9 +63,21 @@ class Server:
             if message == "exit":
                 self.close_connection(connection_socket, cname)
                 break
+
             elif message == "status":
                 self.send_status(connection_socket)
-            else:
+
+            elif message == "get_name":
+                connection_socket.send(cname.encode())
+
+            elif message == "list": 
+                # Gives a list of files in server directory to client
+                connection_socket.send(self.get_files().encode())
+                # Recieve the file name the client requests
+                f_name = connection_socket.recv(1024).decode()
+                self.send_file(connection_socket, f_name)
+
+            else: # handles recieved message
                 self.echo_message(message, connection_socket)
                 
              
@@ -64,6 +87,12 @@ class Server:
         self.num_clients += 1
         self.connected_clients += 1
 
+        # Check if ip addr already exists in cache
+        for client in self.cache:
+            if client[1] == addr:
+                self.cache.append([cname, addr, date_added, None])
+                return client[0] #name of client with matching ip
+
         # Create a client name in format Client01, Client02, etc
         cname = "Client" + str(self.num_clients)
 
@@ -71,7 +100,7 @@ class Server:
         self.clients.append([cname, addr, con_socket])
 
         # Add to cache
-        self.cache.append([cname, date_added, None])
+        self.cache.append([cname, addr, date_added, None])
 
         return cname
 
@@ -87,12 +116,12 @@ class Server:
         else: self.connected_clients -= 1
 
         connection_socket.close() # Close connection
-        date_ended = datetime.datetime.now()
+        date_ended = datetime.datetime.now().strftime("%B %d, %Y %I:%M %p")
 
         # Add connection end time to connection cache
         for connection in self.cache:
             if connection[0] == cname:
-                connection[2] = date_ended
+                connection[len(connection)-1] = date_ended
                 break
 
     # Return cache of specific client
@@ -100,9 +129,37 @@ class Server:
         status = ''.join(str(item)+"\n" for item in self.cache)  # Convert each item to a string
         con_socket.send(status.encode())
 
+    # Returns list of files on server
+    def get_files(self):
+        files = ""
+        directory = Path('files/')
 
-    # Listen for a 'list' message. Upon recieval, give a list of files, and wait for response.
-    # Upon response send the clients desired file. If name invalid ask again.
+        for f in directory.iterdir():
+            if f.is_file(): files += f.name + ","
+        
+        return files
+
+    # Gives a requested file to client
+    # If file doesn't exist inform client by returning 'dne'
+    def send_file(self, con_socket, filename): #con_sock: socket of client
+        # Notify the client to expect a file
+        con_socket.send("SENDING_FILE".encode())
+
+        # Add dir to filename
+        filename = "files/"+filename
+
+        # Send the file size
+        file_size = os.path.getsize(filename)
+        con_socket.send(f"{file_size}".encode())
+
+        # Open the file and send its content
+        with open(filename, 'rb') as f:
+            bytes_read = f.read(1024)
+            while bytes_read:
+                con_socket.send(bytes_read)
+                bytes_read = f.read(1024)
+
+        print("File sent successfully.")
 
 if __name__ == "__main__":
     server = Server()

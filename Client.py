@@ -20,8 +20,13 @@ class Client:
         clientSocket = socket(AF_INET, SOCK_STREAM)
         try:
             clientSocket.connect((self.server_ip, self.server_port))
-            print("Connection established")
-        except Exception as e:  # If server already has 3 clients
+            response = clientSocket.recv(1024).decode()
+            if response == "max_cap": # If server already has 3 clients
+                print("Server has reached max capacity of 3 clients. Try later")
+                return None
+            else:
+                print("Connection established")
+        except Exception as e:  
             print(f"Failed to connect: {e}")
             return None
         return clientSocket
@@ -52,17 +57,52 @@ class Client:
 
     # Send 'list' message. When list of files is received, ask user for name of file they want.
     # If entered file name is invalid, ask user again.
-    def get_file(self, message):
-        # Implement logic for requesting a file from the server
-        pass
+    def get_file(self):
+        self.clientSocket.send("list".encode())
+
+        # Print received file names
+        files = self.clientSocket.recv(10000).decode().split(',')
+        print(f"Files in server directory:\n" + '\n'.join(files))
+        f_name = input("Select the file name you want (Must be case sensitive): ")
+
+        while((f_name) not in files):
+            f_name = input("File doesn't exist please try again!: ")
+        
+        # Send file name to server
+        self.clientSocket.send(f_name.encode())
+
+        response = self.clientSocket.recv(1024).decode()
+        if response == "SENDING_FILE":
+            # Receive the file size
+            file_size = int(self.clientSocket.recv(1024).decode())
+            print(f"Receiving file of size {file_size} bytes.")
+
+            with open("received_file", 'wb') as f:
+                bytes_received = 0
+                while bytes_received < file_size:
+                    bytes_read = self.clientSocket.recv(1024)
+                    if not bytes_read:
+                        break
+                    f.write(bytes_read)
+                    bytes_received += len(bytes_read)
+
+            print("File received successfully.")
+
+    def get_name(self):
+        name = self.clientSocket.send("get_name".encode())
+        return self.clientSocket.recv(1024).decode()
 
 if __name__ == "__main__":
     client = Client()
+    if (not client.clientSocket): # Connection rejected
+        exit() # Terminate program
+    print(f"You are {client.get_name()}")
     print("Options:")
     print("'exit' : Close connection with server")
     print("'status' : Get client cache info")
     print("'list': request any file from the server.")
 
+    print()
     print("\nAny other input than the above will be considered a message\n")
     while True:
         usr_input = input("\n")
@@ -73,7 +113,7 @@ if __name__ == "__main__":
             print(client.get_cache())
             continue
         elif usr_input == "list":
-            client.get_file(usr_input)  # Pass the message to get_file
+            client.get_file()  
         else:
             client.send_message(usr_input)
 
